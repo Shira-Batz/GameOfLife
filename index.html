@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" type="text/css"
+        href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
+        integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx"
+        crossorigin="anonymous"></script>
+
+    <link rel="shortcut icon" href="icon.ico">
+    <title>Game of Life</title>
+    <style>
+        * {
+            color: rgb(75, 70, 70);
+            user-select: none;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            direction: ltr;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #board-div {
+            height: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #board {
+            border: 1.5px #3F3A3A solid;
+            background-image: radial-gradient(#875a59, #2D2926);
+            height: 570px;
+            width: 570px;
+        }
+
+        td {
+            border: 0.3px #3F3A3A solid;
+        }
+
+        .alive {
+            border: 0 #3F3A3A solid;
+            background-color: #ed6f63;
+            /* border-radius: 50%; */
+        }
+
+        .dying {
+            background-color: #ed6f6377 !important;
+        }
+
+        .dead {
+            background-color: initial;
+        }
+
+        .input-div {
+            margin: 0 0.3rem;
+        }
+
+        #opct-btn,
+        #clr-btn,
+        #rnd-btn {
+            background-color: rgb(125, 125, 125);
+        }
+
+        #btn {
+            margin: 0.3rem 2rem;
+            background-color: #ed6f63;
+            justify-self: center;
+        }
+
+        #btn,
+        #opct-btn,
+        #clr-btn,
+        #rnd-btn {
+            display: block;
+            width: 7.6rem;
+            margin: 0.3rem;
+            padding: 0.3rem;
+            color: whitesmoke;
+            outline: none;
+            border: none;
+            border-radius: 0.25rem;
+        }
+
+        .hover:hover {
+            filter: brightness(1.05);
+        }
+
+        .hover:active,
+        button:active {
+            filter: brightness(0.9);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="board-div">
+        <table id="board"></table>
+        <div>
+            <div class="input-div">
+                <input type="range" id="speed" name="speed" min="2" max="20" value="12.5" step="0.5">
+                <label for="speed"><output id="value1"></output> fps</label>
+            </div>
+            <div class="input-div">
+                <input type="range" id="slots" name="slots" min="10" max="95" value="75" step="5">
+                <label for="slots"><output id="value2"></output> Slots</label>
+            </div>
+            <button class="hover" id="opct-btn">Effect</button>
+            <button class="hover" id="clr-btn">Clear Board</button>
+            <button class="hover" id="rnd-btn">Random Board</button>
+            <button class="hover" id="btn">Start</button>
+        </div>
+    </div>
+    <script>
+        let n = $("#slots").val(), nSeconds = 1000 / $("#speed").val(), aGrid = [];
+        let myInterval, dying = true, change;
+        $(function () {
+            $("#value1").text($("#speed").val());
+            $("#value2").text($("#slots").val());
+
+            if (screen.width < 570) {
+                $(".hover").removeClass("hover");
+                $("#board").css({ width: screen.width, height: screen.width });
+                $("#board + div").css({ textAlign: "center" });
+                $(".input-div").css({ textAlign: "left", margin: "0" });
+                $("input").css({ width: screen.width - 26 - $("label").width() });
+                $("button").css({ width: screen.width - 20, margin: "0.3rem 0", padding: "0.3rem 0" });
+            }
+
+            else {
+                $(".input-div").css({ width: $(".input-div:first-of-type").width() });
+                $("button").css({ width: $(".input-div").width() });
+            }
+
+            $("#speed").on("input", (event) => {
+                $("#value1").text(event.target.value);
+                nSeconds = 1000 / event.target.value;
+                if ($("#btn").text() === "Stop") {
+                    clearInterval(myInterval);
+                    myInterval = setInterval(newGeneration, nSeconds);
+                }
+            });
+
+            $("#slots").on("input", (event) => {
+                if ($("#btn").text() === "Stop") {
+                    clearInterval(myInterval);
+                }
+                $("#btn").text("Start");
+                $("#value2").text(event.target.value);
+                n = event.target.value;
+                buildBoard();
+            });
+
+            buildBoard();
+
+            $("#rnd-btn").on("click", randomBoard);
+            $("#clr-btn").on("click", clearBoard);
+            $("#opct-btn").on("click", function () {
+                dying = !dying;
+                if (!dying) {
+                    $(".dying").removeClass("dying");
+                    $("#opct-btn").html("<s>Effect</s>");
+                }
+                else $("#opct-btn").html("Effect");
+            });
+
+            $("#btn").on("click", function () {
+                if ($("#btn").text() === "Stop") {
+                    clearInterval(myInterval);
+                    $("#btn").text("Continue");
+                }
+                else {
+                    myInterval = setInterval(newGeneration, nSeconds);
+                    $("#btn").text("Stop");
+                }
+            });
+        });
+
+        function buildBoard() {
+            $("#board").html("");
+            for (let i = 1; i <= n; i++) {
+                $("#board").append("<tr id='tr" + i + "'></tr>");
+                aGrid[i] = [];
+                for (let j = 1; j <= n; j++) {
+                    $("#tr" + i).append("<td id='tr" + i + "td" + j + "'></td>");
+                    if (i === j || i === n - j + 1) {
+                        $("#tr" + i + "td" + j).addClass("alive");
+                        aGrid[i][j] = 1
+                    }
+                    else {
+                        $("#tr" + i + "td" + j).addClass("dead");
+                        aGrid[i][j] = 0;
+                    }
+                }
+            }
+            $("td").off().on("click", changeStatus);
+        }
+
+        function changeStatus() {
+            let nTr = $("tr").index($(this).parent()) + 1;
+            let nTd = $("#tr" + nTr + " > td").index($(this)) + 1;
+            clearInterval(myInterval);
+            $("#btn").text("Start");
+            $(".dying").removeClass("dying");
+            if ($(this).hasClass("dead")) {
+                $(this).attr("class", "alive");
+                aGrid[nTr][nTd] = 1;
+            }
+            else {
+                $(this).attr("class", "dead");
+                aGrid[nTr][nTd] = 0;
+            }
+        }
+
+        function clearBoard() {
+            clearInterval(myInterval);
+            $("#btn").text("Start");
+            $(".alive, .dying").attr("class", "dead");
+            aGrid.forEach((element, i) => {
+                aGrid[i].forEach((element, j) => {
+                    aGrid[i][j] = 0;
+                });
+            });
+        }
+
+        function randomBoard() {
+            clearInterval(myInterval);
+            $("#btn").text("Start");
+            $("td").removeClass("alive dead dying");
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (Math.floor(Math.random() * 2) === 0) {
+                        $("#tr" + i + "td" + j).addClass("alive");
+                        aGrid[i][j] = 1
+                    }
+                    else {
+                        $("#tr" + i + "td" + j).addClass("dead");
+                        aGrid[i][j] = 0;
+                    }
+                }
+            }
+        }
+
+        let nNeighbors;
+        function newGeneration() {
+            change = false;
+            if (dying) $(".dying").removeClass("dying");
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= n; j++) {
+                    nNeighbors = 0;
+
+                    for (let x = -1; x <= 1; x++) {
+                        for (y = -1; y <= 1; y++) {
+                            if (x === 0 && y === 0) continue;
+                            if (i + x > 0 && i + x <= n && j + y > 0 && j + y <= n && aGrid[i + x][j + y] !== 0 && aGrid[i + x][j + y] !== 3) nNeighbors++;
+                        }
+                    }
+
+                    if (aGrid[i][j] !== 0 && aGrid[i][j] !== 3 && (nNeighbors < 2 || nNeighbors > 3)) {
+                        if (!change) change = true;
+                        aGrid[i][j] = 2;
+                    }
+                    else if (aGrid[i][j] !== 1 && aGrid[i][j] !== 2 && nNeighbors === 3) {
+                        if (!change) change = true;
+                        aGrid[i][j] = 3;
+                    }
+                }
+            }
+            updateTable();
+            if (!change) {
+                clearInterval(myInterval);
+                $("#btn").text("Start");
+            }
+        }
+
+        function updateTable() {
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (aGrid[i][j] === 2) {
+                        if (dying) $("#tr" + i + "td" + j).attr("class", "dead dying");
+                        else $("#tr" + i + "td" + j).attr("class", "dead");
+                        aGrid[i][j] = 0;
+                    }
+                    else if (aGrid[i][j] === 3) {
+                        $("#tr" + i + "td" + j).attr("class", "alive");
+                        aGrid[i][j] = 1;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
